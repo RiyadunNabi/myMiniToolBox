@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BUET — L3T1 Course Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0f1117;
+    --surface:   #181c27;
+    --card:      #1e2330;
+    --card-hover:#232840;
+    --border:    #2a3045;
+    --border-hi: #3a4560;
+    --text:      #e8eaf2;
+    --muted:     #7a82a0;
+    --faint:     #3d4560;
+    --accent:    #5b7fff;
+    --accent-bg: #1a2240;
+    --accent-dim:#3050bb;
+    --green:     #3ecf8e;
+    --green-bg:  #0d2a1e;
+    --amber:     #f5a623;
+    --amber-bg:  #2a1f08;
+    --red:       #ff5e5e;
+    --red-bg:    #2a1010;
+    --mono:      'JetBrains Mono', monospace;
+    --sans:      'Inter', sans-serif;
+    --radius:    10px;
+    --radius-lg: 16px;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── top bar ── */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(15,17,23,0.85);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .topbar-brand {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .topbar-brand .buet {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+  }
+  .topbar-brand .slash { color: var(--faint); margin: 0 2px; }
+  .topbar-brand .term {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .dot-idle  { background: var(--faint); }
+  .dot-ok    { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .dot-warn  { background: var(--amber); }
+  .dot-err   { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  #statusLabel { font-size: 12px; color: var(--muted); max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ── buttons ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 32px; padding: 0 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-hi);
+    background: var(--card);
+    color: var(--text);
+    font-size: 12px; font-family: var(--sans); font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--card-hover); border-color: var(--accent); }
+  .btn:active { transform: scale(0.97); }
+  .btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: #4a6fee; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+  /* ── main layout ── */
+  .main { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+  /* ── setup panel ── */
+  .setup-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 2rem;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .setup-panel.connected { border-color: var(--accent-dim); }
+  .setup-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 0.9rem 1.25rem;
+    cursor: pointer;
+    user-select: none;
+  }
+  .setup-header:hover { background: rgba(255,255,255,0.02); }
+  .setup-title { font-size: 13px; font-weight: 500; color: var(--text); flex: 1; display: flex; align-items: center; gap: 8px; }
+  .setup-chevron { color: var(--muted); transition: transform 0.2s; }
+  .setup-chevron.open { transform: rotate(180deg); }
+  .setup-body { padding: 0 1.25rem 1.25rem; border-top: 1px solid var(--border); }
+  .setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 1rem; }
+  @media (max-width: 600px) { .setup-grid { grid-template-columns: 1fr; } }
+  .field-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+  .input {
+    width: 100%; height: 36px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius); color: var(--text);
+    font-family: var(--mono); font-size: 12px;
+    padding: 0 10px;
+    transition: border-color 0.15s;
+  }
+  .input:focus { outline: none; border-color: var(--accent); }
+  .input::placeholder { color: var(--faint); font-family: var(--sans); }
+  .setup-actions { display: flex; gap: 8px; margin-top: 12px; align-items: center; flex-wrap: wrap; }
+  .help-text { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.6; }
+  .help-text a { color: var(--accent); text-decoration: none; }
+  .help-text a:hover { text-decoration: underline; }
+  .gist-id-display {
+    font-family: var(--mono); font-size: 11px;
+    background: var(--accent-bg); border: 1px solid var(--accent-dim);
+    color: var(--accent); border-radius: 6px;
+    padding: 6px 10px; margin-top: 10px;
+    display: none; word-break: break-all; line-height: 1.5;
+  }
+  .gist-id-display.visible { display: block; }
+
+  /* ── section header ── */
+  .section-head {
+    display: flex; align-items: center; gap: 10px;
+    margin: 2rem 0 0.75rem;
+  }
+  .section-label {
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+  .section-line { flex: 1; height: 1px; background: var(--border); }
+  .section-count {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--faint); background: var(--surface);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 1px 6px;
+  }
+
+  /* ── course row ── */
+  .course-row {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 0;
+    margin-bottom: 10px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .course-row:hover { border-color: var(--border-hi); }
+  .course-row:focus-within { border-color: var(--accent-dim); }
+  @media (max-width: 650px) { .course-row { grid-template-columns: 1fr; } }
+
+  .course-meta {
+    padding: 1rem 1.1rem;
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; justify-content: center; gap: 5px;
+  }
+  @media (max-width: 650px) { .course-meta { border-right: none; border-bottom: 1px solid var(--border); } }
+
+  .course-code {
+    font-family: var(--mono); font-size: 11px; font-weight: 500;
+    color: var(--accent); letter-spacing: 0.05em;
+  }
+  .course-name {
+    font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.35;
+  }
+  .course-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 3px; }
+  .tag {
+    font-size: 10px; font-weight: 500; padding: 2px 6px;
+    border-radius: 4px; line-height: 1.4;
+  }
+  .tag-theory { background: var(--accent-bg); color: var(--accent); }
+  .tag-lab    { background: var(--green-bg); color: var(--green); }
+  .tag-cr     { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+  .tag-pre    { background: var(--amber-bg); color: var(--amber); }
+
+  .note-col { position: relative; display: flex; flex-direction: column; }
+  .note-col textarea {
+    flex: 1;
+    resize: vertical;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 0.85rem 1rem;
+    min-height: 80px;
+    width: 100%;
+    transition: background 0.15s;
+  }
+  .note-col textarea:focus { outline: none; background: rgba(91,127,255,0.04); }
+  .note-col textarea::placeholder { color: var(--faint); }
+  .note-footer {
+    display: flex; align-items: center; justify-content: flex-end;
+    padding: 0 8px 6px; gap: 8px;
+  }
+  .char-count { font-size: 10px; color: var(--faint); font-family: var(--mono); }
+  .local-saved {
+    font-size: 10px; color: var(--green);
+    display: flex; align-items: center; gap: 3px;
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .local-saved.show { opacity: 1; }
+
+  /* ── stats bar ── */
+  .stats-bar {
+    display: flex; gap: 1.5rem; flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+    padding: 1rem 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+  }
+  .stat { display: flex; flex-direction: column; gap: 2px; }
+  .stat-val { font-family: var(--mono); font-size: 20px; font-weight: 500; color: var(--text); line-height: 1; }
+  .stat-label { font-size: 11px; color: var(--muted); }
+  .stat-divider { width: 1px; background: var(--border); align-self: stretch; }
+
+  /* ── toast ── */
+  #toast {
+    position: fixed; bottom: 1.5rem; right: 1.5rem;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 10px 16px;
+    font-size: 13px; color: var(--text);
+    display: flex; align-items: center; gap: 8px;
+    opacity: 0; transform: translateY(8px);
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none; z-index: 999;
+    max-width: 320px;
+  }
+  #toast.show { opacity: 1; transform: translateY(0); }
+  #toast.toast-ok   { border-color: var(--green); }
+  #toast.toast-err  { border-color: var(--red); }
+  #toast .toast-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  #toast.toast-ok  .toast-dot { background: var(--green); }
+  #toast.toast-err .toast-dot { background: var(--red); }
+
+  /* ── SVG icons (inline) ── */
+  .icon { display: inline-block; vertical-align: middle; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="buet">BUET</span>
+    <span class="slash">/</span>
+    <span class="term">Level-3 Term-1 &nbsp;·&nbsp; CSE</span>
+  </div>
+  <div class="topbar-right">
+    <span class="dot dot-idle" id="statusDot"></span>
+    <span id="statusLabel">Not connected</span>
+    <button class="btn" onclick="loadFromGist()" id="loadBtn" disabled title="Pull latest from GitHub Gist">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1v9m0 0L5 7m3 3l3-3"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg>
+      Pull
+    </button>
+    <button class="btn primary" onclick="syncToGist()" id="syncBtn" disabled title="Push notes to GitHub Gist">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 15V6m0 0l3 3M8 6L5 9"/><path d="M2 5V3a1 1 0 011-1h10a1 1 0 011 1v2"/></svg>
+      Push
+    </button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- STATS -->
+  <div class="stats-bar">
+    <div class="stat">
+      <span class="stat-val">9</span>
+      <span class="stat-label">Total courses</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat">
+      <span class="stat-val">5</span>
+      <span class="stat-label">Theory</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat">
+      <span class="stat-val">4</span>
+      <span class="stat-label">Sessional / lab</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat">
+      <span class="stat-val">18</span>
+      <span class="stat-label">Credit hours</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat">
+      <span class="stat-val" id="pendingCount">0</span>
+      <span class="stat-label">Courses with pending notes</span>
+    </div>
+  </div>
+
+  <!-- GITHUB SETUP -->
+  <div class="setup-panel" id="setupPanel">
+    <div class="setup-header" onclick="toggleSetup()">
+      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      <span class="setup-title">
+        GitHub Gist sync
+        <span id="connectedBadge" style="display:none; font-size:10px; background:var(--green-bg); color:var(--green); border-radius:4px; padding:1px 7px; font-weight:500;">connected</span>
+      </span>
+      <svg class="setup-chevron" id="setupChevron" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5l4 4 4-4"/></svg>
+    </div>
+    <div class="setup-body" id="setupBody" style="display:none;">
+      <div class="setup-grid">
+        <div>
+          <div class="field-label">GitHub Personal Access Token</div>
+          <input class="input" type="password" id="tokenInput" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" />
+        </div>
+        <div>
+          <div class="field-label">Gist ID (blank = create new)</div>
+          <input class="input" type="text" id="gistInput" placeholder="leave blank on first run" />
+        </div>
+      </div>
+      <div class="setup-actions">
+        <button class="btn primary" onclick="connectGist()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 1v6m0 0l-2-2m2 2l2-2"/><path d="M1 9v2a1 1 0 001 1h10a1 1 0 001-1V9"/></svg>
+          Connect
+        </button>
+        <button class="btn" onclick="clearCreds()">Clear saved creds</button>
+        <span id="connectingMsg" style="font-size:12px; color:var(--muted);"></span>
+      </div>
+      <div class="gist-id-display" id="gistDisplay"></div>
+      <p class="help-text">
+        1. <a href="https://github.com/settings/tokens/new?scopes=gist&description=BUET+L3T1+Tracker" target="_blank">Create a GitHub token</a> with the <code style="background:var(--bg);padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:11px;">gist</code> scope only.<br>
+        2. Paste it above, leave Gist ID blank, and click <strong>Connect</strong> — a private Gist will be created.<br>
+        3. On any other device: enter the same token + the Gist ID shown, then click <strong>Connect</strong> → <strong>Pull</strong>.<br>
+        Your token is saved in this browser's localStorage only. It never goes to any server other than GitHub.
+      </p>
+    </div>
+  </div>
+
+  <!-- THEORY COURSES -->
+  <div class="section-head">
+    <span class="section-label">Theory courses</span>
+    <div class="section-line"></div>
+    <span class="section-count">5 courses · 15 credits</span>
+  </div>
+  <div id="theoryList"></div>
+
+  <!-- LAB COURSES -->
+  <div class="section-head">
+    <span class="section-label">Sessional / lab</span>
+    <div class="section-line"></div>
+    <span class="section-count">4 courses · 6 credits</span>
+  </div>
+  <div id="labList"></div>
+
+</div>
+
+<!-- TOAST -->
+<div id="toast"><span class="toast-dot"></span><span id="toastMsg"></span></div>
+
+<script>
+const COURSES = [
+  {code:"CSE 301", name:"Mathematics for Computing and Data Science", credits:3,   prereq:"MATH 243", type:"theory"},
+  {code:"CSE 309", name:"Compiler",                                   credits:3,   prereq:"",         type:"theory"},
+  {code:"CSE 313", name:"Operating System",                           credits:3,   prereq:"",         type:"theory"},
+  {code:"CSE 315", name:"Microprocessors, Microcontrollers & Embedded Systems", credits:3, prereq:"CSE 205", type:"theory"},
+  {code:"CSE 317", name:"Artificial Intelligence",                    credits:3,   prereq:"CSE 211",  type:"theory"},
+  {code:"CSE 310", name:"Compiler Sessional",                         credits:1.5, prereq:"",         type:"lab"},
+  {code:"CSE 314", name:"Operating System Sessional",                 credits:1.5, prereq:"",         type:"lab"},
+  {code:"CSE 316", name:"Microprocessors & Embedded Systems Sessional",credits:1.5,prereq:"",         type:"lab"},
+  {code:"CSE 318", name:"Artificial Intelligence Sessional",          credits:1.5, prereq:"",         type:"lab"},
+];
+
+let notes = {};
+let gistId = localStorage.getItem("buet_gist_id") || "";
+let ghToken = localStorage.getItem("buet_gh_token") || "";
+let saveTimers = {};
+let isConnected = false;
+
+// ── render ──────────────────────────────────────────────────
+function buildUI() {
+  renderList("theoryList", COURSES.filter(c => c.type === "theory"));
+  renderList("labList",    COURSES.filter(c => c.type === "lab"));
+  updatePendingCount();
+}
+
+function renderList(id, courses) {
+  const el = document.getElementById(id);
+  el.innerHTML = "";
+  courses.forEach(c => {
+    const key = c.code.replace(/\s/g, "_");
+    const val = notes[c.code] || "";
+    const row = document.createElement("div");
+    row.className = "course-row";
+    row.innerHTML = `
+      <div class="course-meta">
+        <div class="course-code">${c.code}</div>
+        <div class="course-name">${c.name}</div>
+        <div class="course-tags">
+          <span class="tag ${c.type === 'theory' ? 'tag-theory' : 'tag-lab'}">${c.type === 'theory' ? 'Theory' : 'Sessional'}</span>
+          <span class="tag tag-cr">${c.credits} cr</span>
+          ${c.prereq ? `<span class="tag tag-pre">Pre: ${c.prereq}</span>` : ""}
+        </div>
+      </div>
+      <div class="note-col">
+        <textarea id="ta_${key}" placeholder="Pending: topics, assignments, deadlines..." oninput="onEdit('${c.code}', this)">${escHtml(val)}</textarea>
+        <div class="note-footer">
+          <span class="char-count" id="cc_${key}">${val.length} chars</span>
+          <span class="local-saved" id="ls_${key}">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 5l2 2 4-4"/></svg>
+            saved locally
+          </span>
+        </div>
+      </div>`;
+    el.appendChild(row);
+  });
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function onEdit(code, el) {
+  notes[code] = el.value;
+  const key = code.replace(/\s/g, "_");
+  const cc = document.getElementById("cc_" + key);
+  if (cc) cc.textContent = el.value.length + " chars";
+  saveLocal();
+  const ls = document.getElementById("ls_" + key);
+  if (ls) {
+    ls.classList.add("show");
+    clearTimeout(saveTimers[code]);
+    saveTimers[code] = setTimeout(() => ls.classList.remove("show"), 2000);
+  }
+  updatePendingCount();
+}
+
+function updatePendingCount() {
+  const n = Object.values(notes).filter(v => v.trim().length > 0).length;
+  document.getElementById("pendingCount").textContent = n;
+}
+
+// ── local storage ────────────────────────────────────────────
+function saveLocal() {
+  localStorage.setItem("buet_notes", JSON.stringify(notes));
+}
+function loadLocal() {
+  try { notes = JSON.parse(localStorage.getItem("buet_notes") || "{}"); } catch(e) { notes = {}; }
+}
+
+// ── status ───────────────────────────────────────────────────
+function setStatus(type, msg) {
+  const dot = document.getElementById("statusDot");
+  dot.className = "dot " + ({ ok:"dot-ok", err:"dot-err", warn:"dot-warn" }[type] || "dot-idle");
+  document.getElementById("statusLabel").textContent = msg;
+}
+
+// ── toast ────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, type = "ok") {
+  const el = document.getElementById("toast");
+  document.getElementById("toastMsg").textContent = msg;
+  el.className = "show toast-" + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = "", 3000);
+}
+
+// ── setup panel toggle ───────────────────────────────────────
+function toggleSetup() {
+  const body = document.getElementById("setupBody");
+  const chev = document.getElementById("setupChevron");
+  const open = body.style.display === "none";
+  body.style.display = open ? "" : "none";
+  chev.classList.toggle("open", open);
+}
+
+// ── connect ──────────────────────────────────────────────────
+async function connectGist() {
+  const tok = document.getElementById("tokenInput").value.trim();
+  const gid = document.getElementById("gistInput").value.trim();
+  if (!tok) { toast("Enter your GitHub token first.", "err"); return; }
+  ghToken = tok;
+  localStorage.setItem("buet_gh_token", tok);
+  const msg = document.getElementById("connectingMsg");
+  msg.textContent = "Connecting…";
+  if (gid) {
+    gistId = gid;
+    localStorage.setItem("buet_gist_id", gid);
+    await loadFromGist(true);
+  } else {
+    await createGist();
+  }
+  msg.textContent = "";
+}
+
+async function createGist() {
+  setStatus("warn", "Creating Gist…");
+  try {
+    const res = await fetch("https://api.github.com/gists", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + ghToken, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        description: "BUET L3T1 Course Tracker Notes",
+        public: false,
+        files: { "buet_notes.json": { content: JSON.stringify(notes, null, 2) } }
+      })
+    });
+    if (!res.ok) throw new Error("GitHub API " + res.status);
+    const data = await res.json();
+    gistId = data.id;
+    localStorage.setItem("buet_gist_id", gistId);
+    document.getElementById("gistInput").value = gistId;
+    showGistDisplay();
+    markConnected();
+    toast("Gist created! Copy the Gist ID to use on other devices.", "ok");
+  } catch(e) {
+    setStatus("err", "Failed: " + e.message);
+    toast("Failed to create Gist: " + e.message, "err");
+  }
+}
+
+async function loadFromGist(silent = false) {
+  if (!ghToken || !gistId) { toast("Connect first.", "err"); return; }
+  if (!silent) setStatus("warn", "Loading…");
+  try {
+    const res = await fetch("https://api.github.com/gists/" + gistId, {
+      headers: { Authorization: "Bearer " + ghToken }
+    });
+    if (!res.ok) throw new Error("GitHub API " + res.status);
+    const data = await res.json();
+    const content = data.files["buet_notes.json"]?.content;
+    if (content) {
+      notes = JSON.parse(content);
+      saveLocal();
+      buildUI();
+    }
+    markConnected();
+    setStatus("ok", "Pulled · " + new Date().toLocaleTimeString());
+    if (!silent) toast("Notes loaded from Gist.", "ok");
+  } catch(e) {
+    setStatus("err", "Load failed: " + e.message);
+    toast("Load failed: " + e.message, "err");
+  }
+}
+
+async function syncToGist() {
+  if (!ghToken || !gistId) { toast("Connect first.", "err"); return; }
+  setStatus("warn", "Pushing…");
+  try {
+    const res = await fetch("https://api.github.com/gists/" + gistId, {
+      method: "PATCH",
+      headers: { Authorization: "Bearer " + ghToken, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        files: { "buet_notes.json": { content: JSON.stringify(notes, null, 2) } }
+      })
+    });
+    if (!res.ok) throw new Error("GitHub API " + res.status);
+    setStatus("ok", "Pushed · " + new Date().toLocaleTimeString());
+    toast("Notes saved to Gist.", "ok");
+  } catch(e) {
+    setStatus("err", "Push failed: " + e.message);
+    toast("Push failed: " + e.message, "err");
+  }
+}
+
+function markConnected() {
+  isConnected = true;
+  document.getElementById("syncBtn").disabled = false;
+  document.getElementById("loadBtn").disabled = false;
+  document.getElementById("connectedBadge").style.display = "inline";
+  document.getElementById("setupPanel").classList.add("connected");
+  // Auto-collapse setup once connected
+  document.getElementById("setupBody").style.display = "none";
+  document.getElementById("setupChevron").classList.remove("open");
+}
+
+function showGistDisplay() {
+  const el = document.getElementById("gistDisplay");
+  el.textContent = "Gist ID: " + gistId + "\n(Save this to connect from other devices)";
+  el.classList.add("visible");
+}
+
+function clearCreds() {
+  localStorage.removeItem("buet_gh_token");
+  localStorage.removeItem("buet_gist_id");
+  document.getElementById("tokenInput").value = "";
+  document.getElementById("gistInput").value = "";
+  gistId = ""; ghToken = ""; isConnected = false;
+  document.getElementById("syncBtn").disabled = true;
+  document.getElementById("loadBtn").disabled = true;
+  document.getElementById("connectedBadge").style.display = "none";
+  document.getElementById("setupPanel").classList.remove("connected");
+  document.getElementById("gistDisplay").classList.remove("visible");
+  setStatus("idle", "Not connected");
+  toast("Credentials cleared.", "ok");
+}
+
+// ── keyboard shortcut: Ctrl+S to push ───────────────────────
+document.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+    e.preventDefault();
+    if (isConnected) syncToGist();
+    else toast("Not connected to Gist yet.", "err");
+  }
+});
+
+// ── boot ────────────────────────────────────────────────────
+loadLocal();
+buildUI();
+
+if (ghToken) document.getElementById("tokenInput").value = ghToken;
+if (gistId)  document.getElementById("gistInput").value  = gistId;
+if (ghToken && gistId) {
+  markConnected();
+  setStatus("ok", "Token & Gist found — hit Pull to sync");
+}
+
+// Open setup panel on first run
+if (!ghToken) {
+  document.getElementById("setupBody").style.display = "";
+  document.getElementById("setupChevron").classList.add("open");
+}
+</script>
+</body>
+</html>
